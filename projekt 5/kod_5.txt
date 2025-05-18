@@ -1,0 +1,97 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from numpy.linalg import norm, svd, eig, inv
+import random
+
+def power_method(A, p=2, epsilon=1e-4, max_iter=10, seed=1):
+    n = A.shape[0]
+    while True:
+        np.random.seed(seed*100)
+        z = np.random.rand(n) 
+        w = A @ z
+        max_wi = np.max(np.abs(w))
+        error = norm(w - max_wi * z, ord=p)
+        if error >= 1e-8:
+            break
+        it += 100
+    
+    z_init = z
+    errors = []
+    for _ in range(max_iter):
+        w = A @ z
+        z = w / norm(w, ord=p)
+        lambda_est = np.dot(z, A @ z)
+        error = norm(A @ z - lambda_est * z, ord=p)
+        errors.append(error)
+        if error < epsilon:
+            break
+
+    return z_init, lambda_est, errors
+
+def custom_svd(A):
+    AAT = A @ A.T
+    D_vals, U = eig(AAT)
+    D = np.diag(np.sqrt(np.abs(D_vals)))  
+    D_inv = np.diag([1/d if d != 0 else 0 for d in np.diag(D)])
+    V = A.T @ U @ D_inv
+    return U, D, V
+
+def plot_errors(all_errors, ps, Z):
+    for i, p in enumerate(ps):
+        plt.figure(figsize=(12, 4))
+        for j in range(3):
+            print(Z[p][j])
+            plt.subplot(1, 3, j+1)
+            plt.plot(all_errors[p][j])
+            plt.xlabel("Iteracja")
+            plt.ylabel("Błąd")
+            plt.title(f"p={p}")
+#             plt.yscale('log')
+            plt.grid()
+        plt.tight_layout()
+        plt.show()
+
+def compare_svd_accuracy(A, p):
+    U_custom, D_custom, V_custom = custom_svd(A)
+    A_custom = U_custom @ D_custom @ V_custom.T
+    U_np, S_np, Vt_np = svd(A)
+    A_np = U_np @ np.diag(S_np) @ Vt_np
+    error = norm(A_custom - A_np, ord=p)
+    return error
+
+# Macierz A
+np.random.seed(20010801)
+A = np.array([[np.random.randint(1, 100) for i in range(3)] for j in range(3)])
+
+print(A)
+
+# Wartości p-norm
+ps = [1, 2, 3, 4, np.inf]
+
+# 3 uruchomienia metody potęgowej dla każdej normy
+all_errors = {}
+Z = {}
+for p in ps:
+    all_errors[p] = []
+    Z[p] = []
+    for j in range(3):
+        z, _, errors = power_method(A, p=p, epsilon=1e-4, seed=j)
+        all_errors[p].append(errors)
+        Z[p].append(z)
+
+# Wykresy błędów
+plot_errors(all_errors, ps, Z)
+
+ps1 = [1, 2, np.inf]
+
+# Porównanie SVD
+print("Porównanie dokładności SVD:")
+for p in ps1:
+    error = compare_svd_accuracy(A, p)
+    print(f"Norma p={p}: ||UDV - SVD(A)||_p = {error:.4e}")
+
+U, D, V = custom_svd(A)
+
+print(U)
+print(D)
+print(V)
